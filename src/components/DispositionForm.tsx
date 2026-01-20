@@ -253,7 +253,7 @@ export default function DispositionForm() {
 
         {/* Map & Calendar Embeds */}
         {postcodeZone && (
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="p-3 bg-gray-50 border-b border-gray-200">
                 <h3 className="font-medium text-gray-900">Service Area Map</h3>
@@ -276,7 +276,7 @@ export default function DispositionForm() {
               <iframe
                 src={convertCalendarCidToEmbed(postcodeZone.calendar_url)}
                 width="100%"
-                height="350"
+                height="500"
                 style={{ border: 0 }}
                 frameBorder="0"
                 scrolling="no"
