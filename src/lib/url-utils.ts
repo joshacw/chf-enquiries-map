@@ -26,6 +26,7 @@ export function convertMapViewerToEmbed(viewerUrl: string): string {
  * Convert Google Calendar cid URL to embed URL
  * From: https://calendar.google.com/calendar/u/0?cid=...
  * To: https://calendar.google.com/calendar/embed?src=...&ctz=Australia/Sydney
+ * Using AGENDA mode to show upcoming appointments in list format
  */
 export function convertCalendarCidToEmbed(cidUrl: string): string {
   try {
@@ -38,7 +39,7 @@ export function convertCalendarCidToEmbed(cidUrl: string): string {
     const decodedEmail = atob(cid)
     const encodedSrc = encodeURIComponent(decodedEmail)
 
-    return `https://calendar.google.com/calendar/embed?src=${encodedSrc}&ctz=Australia/Sydney&mode=WEEK`
+    return `https://calendar.google.com/calendar/embed?src=${encodedSrc}&ctz=Australia/Sydney&mode=AGENDA`
   } catch {
     return cidUrl
   }
