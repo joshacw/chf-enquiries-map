@@ -362,10 +362,10 @@ export default function DispositionForm() {
         </div>
       )}
 
-      {/* Main Two-Panel Layout */}
+      {/* Main Three-Column Layout */}
       <div className="flex gap-2" style={{ height: 'calc(100vh - 100px)' }}>
-        {/* Left Panel - 40% */}
-        <div className="w-[40%] flex flex-col gap-2">
+        {/* Left Column - Postcode + Map */}
+        <div className="w-[30%] flex flex-col gap-2">
           {/* Postcode Input */}
           <div className="hs-card p-3">
             <div className="flex items-center gap-2">
@@ -412,12 +412,14 @@ export default function DispositionForm() {
               />
             </div>
           </div>
+        </div>
 
-          {/* Calendar Section */}
-          {postcodeZone?.calendar_url && (
-            <div className="hs-card overflow-hidden" style={{ height: '280px' }}>
-              <div className="hs-tile-header flex items-center justify-between">
-                <span>Available Appointments</span>
+        {/* Middle Column - Calendar */}
+        <div className="w-[25%] flex flex-col">
+          <div className="hs-card overflow-hidden flex-1 flex flex-col">
+            <div className="hs-tile-header flex items-center justify-between">
+              <span>Available Appointments</span>
+              {postcodeZone?.calendar_url && (
                 <a
                   href={postcodeZone.calendar_url}
                   target="_blank"
@@ -429,21 +431,28 @@ export default function DispositionForm() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
                 </a>
-              </div>
+              )}
+            </div>
+            {postcodeZone?.calendar_url ? (
               <iframe
                 src={convertCalendarCidToEmbed(postcodeZone.calendar_url)}
                 width="100%"
-                height="239"
-                style={{ border: 0 }}
+                className="flex-1"
+                style={{ border: 0, minHeight: '300px' }}
                 frameBorder="0"
-                scrolling="no"
               />
-            </div>
-          )}
+            ) : (
+              <div className="flex-1 flex items-center justify-center p-4 text-center">
+                <p style={{ color: 'var(--hs-text-muted)' }} className="text-sm">
+                  Enter a postcode to view available appointments
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Right Panel - 60% */}
-        <div className="w-[60%] hs-card flex flex-col">
+        {/* Right Column - Disposition Form */}
+        <div className="w-[45%] hs-card flex flex-col">
           {/* Tab Bar */}
           <div className="flex border-b" style={{ borderColor: 'var(--hs-border-color)' }}>
             {DISPOSITION_TABS.map((tab) => (
