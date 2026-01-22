@@ -5,6 +5,9 @@ import dynamic from 'next/dynamic'
 import { getSupabase, PostcodeZone } from '@/lib/supabase'
 import { convertCalendarCidToEmbed } from '@/lib/url-utils'
 import Toast from './Toast'
+import CalendarHeatMap from './CalendarHeatMap'
+import DaySlots from './DaySlots'
+import { DayData, TimeSlot } from '@/lib/calendar-api'
 
 // Dynamic import for MapLibre to avoid SSR issues
 const ServiceAreaMap = dynamic(() => import('./ServiceAreaMap'), {
@@ -154,6 +157,9 @@ export default function DispositionForm() {
   const [mapCoordinates, setMapCoordinates] = useState<[number, number] | null>(null)
   const [serviceAreaInfo, setServiceAreaInfo] = useState<{ inArea: boolean; areaName: string | null } | null>(null)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [calendarView, setCalendarView] = useState<'heatmap' | 'dayslots'>('heatmap')
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null)
+  const [selectedDayData, setSelectedDayData] = useState<DayData | null>(null)
 
   // Lookup postcode when 4 digits entered
   const lookupPostcode = useCallback(async (postcode: string) => {
@@ -242,6 +248,10 @@ export default function DispositionForm() {
     setFormData(prev => ({ ...prev, postcode: numericValue }))
     setMapCoordinates(null)
     setServiceAreaInfo(null)
+    // Reset calendar view when postcode changes
+    setCalendarView('heatmap')
+    setSelectedCalendarDate(null)
+    setSelectedDayData(null)
   }
 
   const handlePostcodeKeyDown = (e: React.KeyboardEvent) => {
@@ -266,6 +276,28 @@ export default function DispositionForm() {
     } else {
       setPostcodeError(null)
     }
+  }, [])
+
+  const handleCalendarDaySelect = useCallback((date: string, dayData: DayData) => {
+    setSelectedCalendarDate(date)
+    setSelectedDayData(dayData)
+    setCalendarView('dayslots')
+  }, [])
+
+  const handleCalendarBack = useCallback(() => {
+    setSelectedCalendarDate(null)
+    setSelectedDayData(null)
+    setCalendarView('heatmap')
+  }, [])
+
+  const handleSlotSelect = useCallback((date: string, slot: 'AM' | 'PM', timeSlot: TimeSlot) => {
+    setFormData(prev => ({
+      ...prev,
+      appointmentDate: date,
+      timeSlot: slot,
+      disposition: 'book_water_test',
+    }))
+    setToast({ message: `Slot selected: ${timeSlot.time} on ${date}`, type: 'success' })
   }, [])
 
   const handleSubmit = () => {
@@ -414,40 +446,65 @@ export default function DispositionForm() {
           </div>
         </div>
 
-        {/* Middle Column - Calendar */}
+        {/* Middle Column - Calendar Heat Map */}
         <div className="w-[25%] flex flex-col">
           <div className="hs-card overflow-hidden flex-1 flex flex-col">
             <div className="hs-tile-header flex items-center justify-between">
-              <span>Available Appointments</span>
-              {postcodeZone?.calendar_url && (
-                <a
-                  href={postcodeZone.calendar_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hs-link text-xs flex items-center gap-1"
-                >
-                  Open
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-              )}
-            </div>
-            {postcodeZone?.calendar_url ? (
-              <iframe
-                src={convertCalendarCidToEmbed(postcodeZone.calendar_url)}
-                width="100%"
-                className="flex-1"
-                style={{ border: 0, minHeight: '300px' }}
-                frameBorder="0"
-              />
-            ) : (
-              <div className="flex-1 flex items-center justify-center p-4 text-center">
-                <p style={{ color: 'var(--hs-text-muted)' }} className="text-sm">
-                  Enter a postcode to view available appointments
-                </p>
+              <span>
+                {calendarView === 'heatmap' ? 'Available Appointments' :
+                  `Slots for ${selectedCalendarDate ? new Date(selectedCalendarDate).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) : ''}`}
+              </span>
+              <div className="flex items-center gap-2">
+                {calendarView === 'dayslots' && (
+                  <button
+                    onClick={handleCalendarBack}
+                    className="hs-link text-xs flex items-center gap-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back
+                  </button>
+                )}
+                {postcodeZone?.calendar_url && (
+                  <a
+                    href={postcodeZone.calendar_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hs-link text-xs flex items-center gap-1"
+                  >
+                    Open
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                )}
               </div>
-            )}
+            </div>
+            <div className="flex-1 overflow-hidden">
+              {formData.postcode.length !== 4 ? (
+                <div className="flex items-center justify-center p-4 text-center h-full">
+                  <p style={{ color: 'var(--hs-text-muted)' }} className="text-sm">
+                    Enter a postcode to view available appointments
+                  </p>
+                </div>
+              ) : calendarView === 'heatmap' ? (
+                <CalendarHeatMap
+                  postcode={formData.postcode}
+                  onDaySelect={handleCalendarDaySelect}
+                  onError={(error) => setToast({ message: error, type: 'error' })}
+                />
+              ) : selectedCalendarDate && selectedDayData ? (
+                <DaySlots
+                  postcode={formData.postcode}
+                  date={selectedCalendarDate}
+                  dayData={selectedDayData}
+                  onSlotSelect={handleSlotSelect}
+                  onBack={handleCalendarBack}
+                  onError={(error) => setToast({ message: error, type: 'error' })}
+                />
+              ) : null}
+            </div>
           </div>
         </div>
 
