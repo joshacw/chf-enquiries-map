@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { google } from 'https://esm.sh/googleapis@126.0.0'
+import { create, getNumericDate } from 'https://deno.land/x/djwt@v2.8/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -78,6 +78,96 @@ function getConversionPriority(daysFromNow: number): ConversionPriority {
   }
 }
 
+// Convert PEM private key to CryptoKey
+async function importPrivateKey(pem: string): Promise<CryptoKey> {
+  const pemContents = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\n/g, '')
+
+  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0))
+
+  return await crypto.subtle.importKey(
+    'pkcs8',
+    binaryDer,
+    {
+      name: 'RSASSA-PKCS1-v1_5',
+      hash: 'SHA-256',
+    },
+    false,
+    ['sign']
+  )
+}
+
+// Get Google access token using service account
+async function getGoogleAccessToken(serviceAccount: { client_email: string; private_key: string }): Promise<string> {
+  const now = Math.floor(Date.now() / 1000)
+
+  const payload = {
+    iss: serviceAccount.client_email,
+    scope: 'https://www.googleapis.com/auth/calendar.readonly',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: getNumericDate(0),
+    exp: getNumericDate(60 * 60), // 1 hour
+  }
+
+  const privateKey = await importPrivateKey(serviceAccount.private_key)
+
+  const jwt = await create({ alg: 'RS256', typ: 'JWT' }, payload, privateKey)
+
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  })
+
+  const tokenData = await tokenResponse.json()
+
+  if (!tokenResponse.ok) {
+    throw new Error(`Failed to get access token: ${JSON.stringify(tokenData)}`)
+  }
+
+  return tokenData.access_token
+}
+
+// Fetch calendar events using Google Calendar API
+async function fetchCalendarEvents(
+  accessToken: string,
+  calendarId: string,
+  timeMin: string,
+  timeMax: string
+): Promise<any[]> {
+  const params = new URLSearchParams({
+    timeMin,
+    timeMax,
+    singleEvents: 'true',
+    orderBy: 'startTime',
+    maxResults: '2500',
+  })
+
+  const response = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  )
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(`Calendar API error: ${JSON.stringify(data)}`)
+  }
+
+  return data.items || []
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -115,31 +205,21 @@ serve(async (req) => {
       )
     }
 
-    // Set up Google Calendar API
+    // Get Google access token
     const serviceAccount = JSON.parse(Deno.env.get('GOOGLE_SERVICE_ACCOUNT') || '{}')
-
-    const auth = new google.auth.GoogleAuth({
-      credentials: serviceAccount,
-      scopes: ['https://www.googleapis.com/auth/calendar.readonly']
-    })
-
-    const calendar = google.calendar({ version: 'v3', auth })
+    const accessToken = await getGoogleAccessToken(serviceAccount)
 
     // Query calendar for next N days
     const now = new Date()
     const futureDate = new Date()
     futureDate.setDate(now.getDate() + days_ahead)
 
-    const response = await calendar.events.list({
-      calendarId: mapping.calendar_id,
-      timeMin: now.toISOString(),
-      timeMax: futureDate.toISOString(),
-      singleEvents: true,
-      orderBy: 'startTime',
-      maxResults: 2500
-    })
-
-    const events = response.data.items || []
+    const events = await fetchCalendarEvents(
+      accessToken,
+      mapping.calendar_id,
+      now.toISOString(),
+      futureDate.toISOString()
+    )
 
     // Filter for available slots "(No title)"
     const availableSlots = events.filter(event =>
