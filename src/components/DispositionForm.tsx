@@ -674,7 +674,7 @@ export default function DispositionForm() {
                         onChange={() => updateField('leadStatus', 'SL')}
                         className="text-blue-600"
                       />
-                      <span className="text-gray-900">SL (Short Lead)</span>
+                      <span className="text-gray-900">SL (Single Leg)</span>
                     </label>
                     <label className="flex items-center gap-2">
                       <input
@@ -685,7 +685,7 @@ export default function DispositionForm() {
                         onChange={() => updateField('leadStatus', 'DL')}
                         className="text-blue-600"
                       />
-                      <span className="text-gray-900">DL (Direct Lead)</span>
+                      <span className="text-gray-900">DL (Double Leg)</span>
                     </label>
                   </div>
                 </div>
