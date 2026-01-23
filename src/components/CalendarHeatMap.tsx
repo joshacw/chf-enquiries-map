@@ -73,16 +73,13 @@ export default function CalendarHeatMap({ postcode, onDaySelect, onError }: Cale
 
   const { priority_breakdown, service_area_name, total_slots_available } = heatMapData
 
-  // Flatten all days into a single list, ordered by date
-  const allDays = [
+  // Flatten all days and filter out days with no availability
+  const availableDays = [
     ...priority_breakdown.critical.days,
     ...priority_breakdown.urgent.days,
     ...priority_breakdown.warm.days,
     ...priority_breakdown.cooling.days,
-  ]
-
-  // Find first day with available slots
-  const firstAvailableIndex = allDays.findIndex(d => d.available_count > 0)
+  ].filter(day => day.available_count > 0)
 
   return (
     <div className="hs-heatmap-container">
@@ -98,16 +95,24 @@ export default function CalendarHeatMap({ postcode, onDaySelect, onError }: Cale
         </div>
       </div>
 
-      {/* Flat list of all days */}
+      {/* List of days with availability */}
       <div className="hs-heatmap-list">
-        {allDays.map((day, index) => (
-          <DayRow
-            key={day.date}
-            day={day}
-            onSelect={onDaySelect}
-            isFirstAvailable={index === firstAvailableIndex}
-          />
-        ))}
+        {availableDays.length === 0 ? (
+          <div className="flex items-center justify-center p-4 text-center h-full">
+            <p style={{ color: 'var(--hs-text-muted)' }} className="text-sm">
+              No available slots in the next 14 days
+            </p>
+          </div>
+        ) : (
+          availableDays.map((day, index) => (
+            <DayRow
+              key={day.date}
+              day={day}
+              onSelect={onDaySelect}
+              isFirstAvailable={index === 0}
+            />
+          ))
+        )}
       </div>
     </div>
   )
@@ -120,12 +125,9 @@ interface DayRowProps {
 }
 
 function DayRow({ day, onSelect, isFirstAvailable }: DayRowProps) {
-  const hasSlots = day.available_count > 0
-
   return (
     <button
       onClick={() => onSelect(day.date, day)}
-      disabled={!hasSlots}
       className={`hs-day-row-flat ${isFirstAvailable ? 'hs-day-row-highlight' : ''}`}
     >
       <div className="hs-day-row-flat-date">
@@ -135,21 +137,13 @@ function DayRow({ day, onSelect, isFirstAvailable }: DayRowProps) {
       </div>
 
       <div className="hs-day-row-flat-slots">
-        {hasSlots ? (
-          <>
-            <span className="hs-day-row-flat-count">{day.available_count}</span>
-            <span className="hs-day-row-flat-label">slots</span>
-          </>
-        ) : (
-          <span className="hs-day-row-flat-none">-</span>
-        )}
+        <span className="hs-day-row-flat-count">{day.available_count}</span>
+        <span className="hs-day-row-flat-label">slots</span>
       </div>
 
-      {hasSlots && (
-        <svg className="hs-day-row-flat-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      )}
+      <svg className="hs-day-row-flat-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
     </button>
   )
 }
