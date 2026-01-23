@@ -661,8 +661,79 @@ export default function DispositionForm() {
                   Book Water Test - SL/DL
                 </h3>
 
-                {/* Lead Status */}
+                {/* Booking Details Section */}
                 <div>
+                  <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                    Booking Details
+                  </h4>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Date of Booking Call</label>
+                      <input
+                        type="date"
+                        value={formData.dateOfBookingCall}
+                        onChange={(e) => updateField('dateOfBookingCall', e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Leads Rep</label>
+                      <input
+                        type="text"
+                        value={formData.leadsRep}
+                        onChange={(e) => updateField('leadsRep', e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Water Test Day</label>
+                      <select
+                        value={formData.waterTestDay}
+                        onChange={(e) => updateField('waterTestDay', e.target.value)}
+                        className={selectClass}
+                      >
+                        <option value="">Select day</option>
+                        {DAYS_OF_WEEK.map(day => (
+                          <option key={day} value={day}>{day}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Water Test Date *</label>
+                      <input
+                        type="date"
+                        value={formData.waterTestDate}
+                        onChange={(e) => updateField('waterTestDate', e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Water Test Time *</label>
+                      <select
+                        value={formData.waterTestTime}
+                        onChange={(e) => updateField('waterTestTime', e.target.value)}
+                        className={selectClass}
+                      >
+                        <option value="">Select time</option>
+                        {WATER_TEST_TIMES.map(time => (
+                          <option key={time} value={time}>{time}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Available From</label>
+                      <input
+                        type="time"
+                        value={formData.availableFrom}
+                        onChange={(e) => updateField('availableFrom', e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lead Status */}
+                <div className="border-t border-gray-200 pt-4">
                   <label className={labelClass}>Lead Status *</label>
                   <div className="flex gap-4">
                     <label className="flex items-center gap-2">
@@ -986,77 +1057,6 @@ export default function DispositionForm() {
                         <span className="text-sm text-gray-900">{concern}</span>
                       </label>
                     ))}
-                  </div>
-                </div>
-
-                {/* Booking Details Section */}
-                <div className="border-t border-gray-200 pt-4">
-                  <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                    Booking Details
-                  </h4>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClass}>Date of Booking Call</label>
-                      <input
-                        type="date"
-                        value={formData.dateOfBookingCall}
-                        onChange={(e) => updateField('dateOfBookingCall', e.target.value)}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Leads Rep</label>
-                      <input
-                        type="text"
-                        value={formData.leadsRep}
-                        onChange={(e) => updateField('leadsRep', e.target.value)}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Water Test Day</label>
-                      <select
-                        value={formData.waterTestDay}
-                        onChange={(e) => updateField('waterTestDay', e.target.value)}
-                        className={selectClass}
-                      >
-                        <option value="">Select day</option>
-                        {DAYS_OF_WEEK.map(day => (
-                          <option key={day} value={day}>{day}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className={labelClass}>Water Test Date *</label>
-                      <input
-                        type="date"
-                        value={formData.waterTestDate}
-                        onChange={(e) => updateField('waterTestDate', e.target.value)}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Water Test Time *</label>
-                      <select
-                        value={formData.waterTestTime}
-                        onChange={(e) => updateField('waterTestTime', e.target.value)}
-                        className={selectClass}
-                      >
-                        <option value="">Select time</option>
-                        {WATER_TEST_TIMES.map(time => (
-                          <option key={time} value={time}>{time}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className={labelClass}>Available From</label>
-                      <input
-                        type="time"
-                        value={formData.availableFrom}
-                        onChange={(e) => updateField('availableFrom', e.target.value)}
-                        className={inputClass}
-                      />
-                    </div>
                   </div>
                 </div>
               </>
