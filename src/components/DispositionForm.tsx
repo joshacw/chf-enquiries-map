@@ -8,11 +8,9 @@ import Toast from './Toast'
 // Main disposition types
 type DispositionType =
   | 'book_water_test'
-  | 'call_back'
   | 'not_interested'
   | 'other_department'
   | 'unable_to_service'
-  | 'no_answer'
   | 'wrong_number'
   | null
 
@@ -373,18 +371,29 @@ export default function DispositionForm() {
     setIsSubmitting(true)
 
     const payload = {
-      contactInfo,
       ...formData,
+      contactInfo,
       timestamp: new Date().toISOString(),
     }
 
     console.log('Form Submission Payload:', payload)
 
+    // Get Supabase URL from environment
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      setToast({ message: 'Supabase not configured', type: 'error' })
+      setIsSubmitting(false)
+      return
+    }
+
     try {
-      const response = await fetch('/api/submit-disposition', {
+      const response = await fetch(`${supabaseUrl}/functions/v1/hubspot-form-submission`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
         },
         body: JSON.stringify(payload),
       })
@@ -432,16 +441,12 @@ export default function DispositionForm() {
           formData.waterTestDate &&
           formData.waterTestTime
         )
-      case 'call_back':
-        return formData.callBackSubType && formData.followUpDate
       case 'not_interested':
         return formData.notInterestedSubType && formData.listClassification && formData.advisedNotInterestedReason
       case 'other_department':
         return formData.otherDepartment !== ''
       case 'unable_to_service':
         return formData.unableToServiceSubType && formData.listClassification
-      case 'no_answer':
-        return formData.noAnswerSubType !== ''
       case 'wrong_number':
         return formData.wrongNumberSubType !== ''
       default:
@@ -581,17 +586,6 @@ export default function DispositionForm() {
             </button>
 
             <button
-              onClick={() => handleDispositionClick('call_back')}
-              className={`px-5 py-3 rounded-lg font-medium transition-all ${
-                formData.disposition === 'call_back'
-                  ? 'bg-yellow-500 text-white ring-2 ring-yellow-500 ring-offset-2'
-                  : 'bg-yellow-400 text-gray-900 hover:bg-yellow-500'
-              }`}
-            >
-              Call Back
-            </button>
-
-            <button
               onClick={() => handleDispositionClick('not_interested')}
               className={`px-5 py-3 rounded-lg font-medium transition-all ${
                 formData.disposition === 'not_interested'
@@ -622,17 +616,6 @@ export default function DispositionForm() {
               }`}
             >
               Unable to Service
-            </button>
-
-            <button
-              onClick={() => handleDispositionClick('no_answer')}
-              className={`px-5 py-3 rounded-lg font-medium transition-all ${
-                formData.disposition === 'no_answer'
-                  ? 'bg-purple-700 text-white ring-2 ring-purple-700 ring-offset-2'
-                  : 'bg-purple-600 text-white hover:bg-purple-700'
-              }`}
-            >
-              No Answer
             </button>
 
             <button
@@ -1063,103 +1046,6 @@ export default function DispositionForm() {
             )}
 
             {/* ============================================ */}
-            {/* CALL BACK FIELDS */}
-            {/* ============================================ */}
-            {formData.disposition === 'call_back' && (
-              <>
-                <h3 className="font-medium text-gray-900 pb-2 border-b border-gray-200">
-                  Call Back Details
-                </h3>
-
-                <div>
-                  <label className={labelClass}>Call Back Type *</label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => updateField('callBackSubType', '6_months_new_build')}
-                      className={`p-3 border rounded-lg text-left transition-all ${
-                        formData.callBackSubType === '6_months_new_build'
-                          ? 'border-yellow-500 bg-yellow-50 ring-2 ring-yellow-500'
-                          : 'border-gray-300 hover:border-yellow-400'
-                      }`}
-                    >
-                      <span className="font-medium text-gray-900">6 Months New Build</span>
-                      <p className="text-xs text-gray-500 mt-1">New construction, not ready yet</p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateField('callBackSubType', 'same_day')}
-                      className={`p-3 border rounded-lg text-left transition-all ${
-                        formData.callBackSubType === 'same_day'
-                          ? 'border-yellow-500 bg-yellow-50 ring-2 ring-yellow-500'
-                          : 'border-gray-300 hover:border-yellow-400'
-                      }`}
-                    >
-                      <span className="font-medium text-gray-900">Same Day</span>
-                      <p className="text-xs text-gray-500 mt-1">Call back today</p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateField('callBackSubType', '3_days_plus')}
-                      className={`p-3 border rounded-lg text-left transition-all ${
-                        formData.callBackSubType === '3_days_plus'
-                          ? 'border-yellow-500 bg-yellow-50 ring-2 ring-yellow-500'
-                          : 'border-gray-300 hover:border-yellow-400'
-                      }`}
-                    >
-                      <span className="font-medium text-gray-900">3 Days+</span>
-                      <p className="text-xs text-gray-500 mt-1">Call back in 3+ days</p>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelClass}>Follow Up Date *</label>
-                    <input
-                      type="date"
-                      value={formData.followUpDate}
-                      onChange={(e) => updateField('followUpDate', e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Wants Followed Up</label>
-                    <div className="flex gap-4 mt-2">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name="wantsFollowedUp"
-                          value="yes"
-                          checked={formData.wantsFollowedUp === 'yes'}
-                          onChange={() => updateField('wantsFollowedUp', 'yes')}
-                          className="text-blue-600"
-                        />
-                        <span className="text-gray-900">Yes</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name="wantsFollowedUp"
-                          value="no"
-                          checked={formData.wantsFollowedUp === 'no'}
-                          onChange={() => updateField('wantsFollowedUp', 'no')}
-                          className="text-blue-600"
-                        />
-                        <span className="text-gray-900">No</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
-                  <strong>Contact Owner:</strong> Shannon Watson<br />
-                  Customer will be removed from dialling lists until the callback date.
-                </p>
-              </>
-            )}
-
-            {/* ============================================ */}
             {/* NOT INTERESTED FIELDS */}
             {/* ============================================ */}
             {formData.disposition === 'not_interested' && (
@@ -1448,51 +1334,6 @@ export default function DispositionForm() {
 
                 <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
                   <strong>Contact Owner:</strong> CHF Promotions
-                </p>
-              </>
-            )}
-
-            {/* ============================================ */}
-            {/* NO ANSWER FIELDS */}
-            {/* ============================================ */}
-            {formData.disposition === 'no_answer' && (
-              <>
-                <h3 className="font-medium text-gray-900 pb-2 border-b border-gray-200">
-                  No Answer Details
-                </h3>
-
-                <div>
-                  <label className={labelClass}>Type *</label>
-                  <div className="grid grid-cols-2 gap-3 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => updateField('noAnswerSubType', 'voicemail')}
-                      className={`p-4 border rounded-lg text-left transition-all ${
-                        formData.noAnswerSubType === 'voicemail'
-                          ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-600'
-                          : 'border-gray-300 hover:border-purple-400'
-                      }`}
-                    >
-                      <span className="font-medium text-gray-900">Voicemail</span>
-                      <p className="text-xs text-gray-500 mt-1">Left a voicemail message</p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateField('noAnswerSubType', 'no_answer')}
-                      className={`p-4 border rounded-lg text-left transition-all ${
-                        formData.noAnswerSubType === 'no_answer'
-                          ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-600'
-                          : 'border-gray-300 hover:border-purple-400'
-                      }`}
-                    >
-                      <span className="font-medium text-gray-900">No Answer</span>
-                      <p className="text-xs text-gray-500 mt-1">No response, no voicemail</p>
-                    </button>
-                  </div>
-                </div>
-
-                <p className="text-sm text-gray-500 bg-purple-50 p-3 rounded-lg">
-                  <strong>HubSpot Action:</strong> Automation will update &apos;Number of Times Contacted&apos; once the call logs.
                 </p>
               </>
             )}
