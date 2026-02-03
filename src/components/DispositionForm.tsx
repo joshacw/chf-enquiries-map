@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getSupabase, PostcodeZone } from '@/lib/supabase'
 import { convertMapViewerToEmbed, convertCalendarCidToEmbed } from '@/lib/url-utils'
+import { fetchLeadData, LeadData, mapLeadPropertiesToFormData } from '@/lib/lead-api'
+import LeadInfoAccordion from './LeadInfoAccordion'
 import Toast from './Toast'
 
 // Main disposition types
@@ -264,6 +266,11 @@ export default function DispositionForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
+  // Lead data state
+  const [leadData, setLeadData] = useState<LeadData | null>(null)
+  const [isLoadingLead, setIsLoadingLead] = useState(false)
+  const [leadError, setLeadError] = useState<string | null>(null)
+
   // Lookup postcode when 4 digits entered
   const lookupPostcode = useCallback(async (postcode: string) => {
     if (postcode.length !== 4) {
@@ -303,7 +310,7 @@ export default function DispositionForm() {
     }
   }, [])
 
-  // Parse query params on mount
+  // Parse query params on mount and fetch lead data if contact_id present
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const contact_id = params.get('contact_id') || params.get('contactID')
@@ -320,7 +327,7 @@ export default function DispositionForm() {
         email: email || '',
       })
 
-      // Pre-populate form fields from contact info
+      // Pre-populate form fields from URL contact info (will be overridden by HubSpot data if available)
       const nameParts = (name || '').split(' ')
       setFormData(prev => ({
         ...prev,
@@ -335,6 +342,39 @@ export default function DispositionForm() {
     if (postcode && postcode.length === 4 && /^\d{4}$/.test(postcode)) {
       setFormData(prev => ({ ...prev, postcode, postalCode: postcode }))
       lookupPostcode(postcode)
+    }
+
+    // Fetch full lead data from HubSpot if contact_id is present
+    if (contact_id) {
+      setIsLoadingLead(true)
+      setLeadError(null)
+      fetchLeadData(contact_id)
+        .then(response => {
+          if (response.success && response.contact) {
+            setLeadData(response.contact)
+            // Pre-populate form fields from HubSpot data
+            const mappedData = mapLeadPropertiesToFormData(response.contact.rawProperties)
+            setFormData(prev => ({
+              ...prev,
+              ...mappedData,
+              // Keep postcode from URL if HubSpot doesn't have it
+              postcode: mappedData.postalCode || prev.postcode,
+            }))
+            // Lookup postcode zone if we got a postal code
+            if (mappedData.postalCode && mappedData.postalCode.length === 4) {
+              lookupPostcode(mappedData.postalCode)
+            }
+          } else {
+            setLeadError(response.error || 'Failed to load lead data')
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching lead data:', err)
+          setLeadError('Failed to load lead data')
+        })
+        .finally(() => {
+          setIsLoadingLead(false)
+        })
     }
   }, [lookupPostcode])
 
@@ -473,109 +513,39 @@ export default function DispositionForm() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Contact Info Header */}
+        {/* Quick Contact Info Banner */}
         {contactInfo && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-              Contact Information
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {contactInfo.contact_id && (
-                <div>
-                  <span className="text-xs text-gray-500">Contact ID</span>
-                  <p className="font-medium text-gray-900">{contactInfo.contact_id}</p>
-                </div>
-              )}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex flex-wrap items-center gap-4 text-sm">
               {contactInfo.name && (
-                <div>
-                  <span className="text-xs text-gray-500">Name</span>
-                  <p className="font-medium text-gray-900">{contactInfo.name}</p>
-                </div>
+                <span className="font-medium text-blue-900">{contactInfo.name}</span>
               )}
               {contactInfo.phone && (
-                <div>
-                  <span className="text-xs text-gray-500">Phone</span>
-                  <p className="font-medium text-gray-900">{contactInfo.phone}</p>
-                </div>
+                <span className="text-blue-700">
+                  <svg className="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  {contactInfo.phone}
+                </span>
               )}
               {contactInfo.email && (
-                <div>
-                  <span className="text-xs text-gray-500">Email</span>
-                  <p className="font-medium text-gray-900">{contactInfo.email}</p>
-                </div>
+                <span className="text-blue-700">
+                  <svg className="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  {contactInfo.email}
+                </span>
+              )}
+              {contactInfo.contact_id && (
+                <span className="text-blue-600 text-xs bg-blue-100 px-2 py-0.5 rounded">
+                  ID: {contactInfo.contact_id}
+                </span>
               )}
             </div>
           </div>
         )}
 
-        {/* Postcode Lookup */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Postcode
-          </label>
-          <input
-            type="text"
-            value={formData.postcode}
-            onChange={(e) => handlePostcodeChange(e.target.value)}
-            placeholder="Enter 4-digit postcode"
-            className="w-full md:w-48 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-          />
-
-          {isLoadingPostcode && (
-            <p className="mt-2 text-sm text-gray-500">Looking up postcode...</p>
-          )}
-
-          {postcodeError && (
-            <p className="mt-2 text-sm text-red-600 font-medium">{postcodeError}</p>
-          )}
-        </div>
-
-        {/* Map & Calendar Embeds */}
-        {postcodeZone && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-3 bg-gray-50 border-b border-gray-200">
-                <h3 className="font-medium text-gray-900">Service Area Map</h3>
-              </div>
-              <iframe
-                src={convertMapViewerToEmbed(postcodeZone.map_url)}
-                width="100%"
-                height="350"
-                style={{ border: 0 }}
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                <h3 className="font-medium text-gray-900">Available Appointments</h3>
-                <a
-                  href={postcodeZone.calendar_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
-                >
-                  Open in new tab
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-              </div>
-              <iframe
-                src={convertCalendarCidToEmbed(postcodeZone.calendar_url)}
-                width="100%"
-                height="500"
-                style={{ border: 0 }}
-                frameBorder="0"
-                scrolling="no"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Disposition Buttons */}
+        {/* Disposition Buttons - MOVED TO TOP */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
             Call Disposition
@@ -637,6 +607,93 @@ export default function DispositionForm() {
             </button>
           </div>
         </div>
+
+        {/* Postcode Lookup */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Postcode
+          </label>
+          <input
+            type="text"
+            value={formData.postcode}
+            onChange={(e) => handlePostcodeChange(e.target.value)}
+            placeholder="Enter 4-digit postcode"
+            className="w-full md:w-48 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+          />
+
+          {isLoadingPostcode && (
+            <p className="mt-2 text-sm text-gray-500">Looking up postcode...</p>
+          )}
+
+          {postcodeError && (
+            <p className="mt-2 text-sm text-red-600 font-medium">{postcodeError}</p>
+          )}
+        </div>
+
+        {/* Map & Calendar Embeds */}
+        {postcodeZone && (
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="font-medium text-gray-900">Service Area Map</h3>
+                <a
+                  href={postcodeZone.map_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                >
+                  Open in new tab
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              </div>
+              <iframe
+                src={convertMapViewerToEmbed(postcodeZone.map_url)}
+                width="100%"
+                height="300"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="font-medium text-gray-900">Available Appointments</h3>
+                <a
+                  href={postcodeZone.calendar_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                >
+                  Open in new tab
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              </div>
+              <iframe
+                src={convertCalendarCidToEmbed(postcodeZone.calendar_url)}
+                width="100%"
+                height="300"
+                style={{ border: 0 }}
+                frameBorder="0"
+                scrolling="no"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Lead Information Accordion */}
+        {contactInfo?.contact_id && (
+          <LeadInfoAccordion
+            leadData={leadData}
+            isLoading={isLoadingLead}
+            error={leadError}
+          />
+        )}
 
         {/* Conditional Fields */}
         {formData.disposition && (
