@@ -160,11 +160,12 @@ const initialFormData: FormData = {
 // Option arrays
 const PROPERTY_TYPES = [
   'House',
-  'Townhouse',
-  'Unit/Apartment',
+  'Apartment',
+  'Villa',
+  'Unit',
   'Duplex',
-  'Rural Property',
-  'Other',
+  'Townhouse',
+  'New Build',
 ]
 
 const WATER_CONCERNS = [
