@@ -180,7 +180,13 @@ const WATER_CONCERNS = [
   'Other',
 ]
 
-const PEOPLE_IN_HOUSE_OPTIONS = ['1', '2', '3', '4', '5', '6', '7+']
+const PEOPLE_IN_HOUSE_OPTIONS = [
+  'Just myself & my kid/s',
+  '2 Adults with no kids',
+  'Live with a partner & kids',
+  'Single Adult Only',
+  'Other',
+]
 
 const WATER_TEST_TIMES = [
   '8:00:00 AM',
