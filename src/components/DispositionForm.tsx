@@ -992,6 +992,37 @@ export default function DispositionForm() {
                     </div>
                   </div>
 
+                  {/* Appointment Details Section */}
+                  <div className="border-t border-gray-200 pt-4">
+                    <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                      Appointment Details
+                    </h4>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelClass}>Water Test Date *</label>
+                        <input
+                          type="date"
+                          value={formData.waterTestDate}
+                          onChange={(e) => updateField('waterTestDate', e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Water Test Time *</label>
+                        <select
+                          value={formData.waterTestTime}
+                          onChange={(e) => updateField('waterTestTime', e.target.value)}
+                          className={selectClass}
+                        >
+                          <option value="">Select time</option>
+                          {WATER_TEST_TIMES.map(time => (
+                            <option key={time} value={time}>{time}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Common Notes */}
                   <div className="border-t border-gray-200 pt-4">
                     <label className={labelClass}>Notes</label>
